@@ -33,12 +33,11 @@ mapview(trkpt , cex=0.8) + mapview(trk) #this plots track points and tracks but 
 range(trkpt$track_seg_point_id) #range unique track point IDS
 length(unique(trkpt$track_seg_point_id)) #number of uniqur track point IDS
 
-###manipulating times in this GPS package can be useful for quarrantining (HA) problems and mucking with stuff
+###manipulating times in this GPS package can be useful for quarrantining (HA HA) problems and mucking with stuff
 range(date(trkpt$time)) #gives min and max of date to identify problems
 unique(date(trkpt$time)) #gives unique dates on the track points, note that there are multiple days in this
 range(as_datetime(trkpt$time))
 max(as_datetime(trkpt$time) ) - min(as_datetime(trkpt$time) ) #time differnce between min and max in file
-
 
 #remove early points where GPS is trying to get a good signal
 trkpt2 <- trkpt[trkpt$track_seg_point_id >1,] #doing by seg point can also do by date and time using lubridate package
@@ -68,6 +67,7 @@ mapview(trkpt , map.types="Esri.WorldImagery" , alpha=0 , col.regions="slateblue
 # mapview(trk)
 
 #######write to gpx file, i can do wthis with rgdal it is unclear about sf for .gpx
+
 #http://zevross.com/blog/2016/01/13/tips-for-reading-spatial-files-into-r-with-rgdal/
 #https://gis.stackexchange.com/questions/190687/create-gpx-track-in-r-writeogr-function
 #sf write for other types of databases
@@ -76,6 +76,7 @@ writeOGR(trkpt_clean, driver="GPX", layer= "track_points",  dsn="/Users/BJB/Desk
 
 writeOGR(wpt , driver="GPX", layer="waypoints",  dsn="/Users/BJB/Desktop/Lomas_GPS_Subset/201501/2015_01_FL waypoints_clean.gpx" , dataset_options = "GPX_USE_EXTENSIONS=yes" , overwrite_layer = TRUE)
 
+max(as_datetime(trkpt_clean$time) ) - min(as_datetime(trkpt_clean$time) ) #time differnce between min and max in cleaned file
 
 #########streamlined workflow
 
@@ -84,25 +85,14 @@ trkpt_clean <- trkpt[trkpt$track_seg_point_id >1 & trkpt$track_seg_point_id > 91
 mapview(trkpt , map.types="Esri.WorldImagery" , alpha=0 , col.regions="slateblue" ) + mapview(trkpt_clean , map.types="Esri.WorldImagery" , alpha=0 , col.regions="orange")
 writeOGR(trkpt_clean, driver="GPX", layer=c("waypoints", "track_points"),  dsn="/Users/BJB/Desktop/Lomas_GPS_Subset/201501/2015_01_FL_trackpoints_clean.gpx" , dataset_options = "GPX_USE_EXTENSIONS=yes" , overwrite_layer = TRUE) #be cautious about using overwrite layer. i turnd this on for troubleshootomg
 
+#########################exercises for odd#######################
 
+#1) clean up above track by using timestamps instead of track segment point ids
+#2) truncate the the end of dataset by removing all tracking points taken after the sleepsite point was entered
+#3) renmame the sleepsite  waypoint extracted from this Flakes GPS file  to 2015_01_22_SLP_FL
+#4) if you really want to be fancy figure out how to affix calculate velocity and graph a heatplot of speed
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+#####################GENERAL SPATIAL OBJECT COMMANDS############
 st_layers("0115 AA.gpx") #shows layers of objects in this file
 st_layers("0115 FL.gpx") #shows layers of objects in this file
 st_layers("0115 SP.gpx") #shows layers of objects in this file
@@ -124,14 +114,14 @@ as.character(trxpts$desc)
 ###########lets visualize data###############
 filename <- "0115 AA.gpx"
 # filename <- "0115 SP.gpx"
-filename <- "0115 FL.gpx"
+# filename <- "0115 FL.gpx"
 ######RGDAL
 
 ########sf fcns
 trk = read_sf(filename, layer = "tracks") #extract tracks if sf
 trkpt = read_sf(filename, layer = "track_points") #extract track points in sf
 wpt = read_sf(filename , layer = "waypoints") #extract waypoints in sf
-st_read(dsn = "0115 AA.gdb", layer = "waypoints" )
+
 plot(trkpt) #useful for more detailed info, can be converted into tracks
 plot(trk) #usefult for visualizing days/seperate tracks on file
 
