@@ -3,7 +3,7 @@
 library(mapview)
 library(sf)
 library(rgdal)#write ogr
-library(lubridate)#useful for dealing with times ina more intuitive manner here is a cheat sheet https://evoldyn.gitlab.io/evomics-2018/ref-sheets/R_lubridate.pdf
+library(lubridate) #useful for dealing with times ina more intuitive manner here is a cheat sheet https://evoldyn.gitlab.io/evomics-2018/ref-sheets/R_lubridate.pdf
 
 ###using map tools https://stackoverflow.com/questions/6397523/read-multiple-gpx-files to read GPD siles
 ########using sf and maptools to visualize data
@@ -49,6 +49,7 @@ length(unique(trkpt2$track_seg_point_id))
 trkpt_clean <- trkpt2[trkpt2$track_seg_point_id > 915 | trkpt2$track_seg_point_id < 888 ,] 
 mapview(list(trkpt,trkpt_clean) , map.types="Esri.WorldImagery" , alpha=0)#compare multiple objects, making this 2 colors would be good
 
+#advanced mapview https://r-spatial.github.io/mapview/articles/articles/mapview_02-advanced.html
 mapview(trkpt , map.types="Esri.WorldImagery" , alpha=0 , col.regions="slateblue" ) + mapview(trkpt_clean , map.types="Esri.WorldImagery" , alpha=0 , col.regions="orange")
 
 
@@ -91,6 +92,24 @@ writeOGR(trkpt_clean, driver="GPX", layer=c("waypoints", "track_points"),  dsn="
 #2) truncate the the end of dataset by removing all tracking points taken after the sleepsite point was entered
 #3) renmame the sleepsite  waypoint extracted from this Flakes GPS file  to 2015_01_22_SLP_FL
 #4) if you really want to be fancy figure out how to affix calculate velocity and graph a heatplot of speed
+
+###########ODDS CLEANED MK DATA#######
+st_layers("MK2010_2012.gpx") #shows layers of objects in this file
+
+filename <- "/Users/BJB/Desktop/Lomas_GPS_Subset/201501/MK2010_2012.gpx"
+trkpts <- readOGR(dsn = filename, layer="track_points") #using this function in RGDAL
+trx <- readOGR(dsn = filename, layer="tracks") #using this function in RGDAL
+trx = st_read(filename, layer = "tracks")#loads just tracks of file
+trkpts = st_read(filename, layer = "track_points")#loads just tracks of file
+
+str(trx)
+mapview(trx)
+plot(trx$geometry) #plot tracks in line
+plot(trx)
+mapview(trkpts , cex=2)
+plot(trkpts$geometry ) #plot traclpoints
+plot(trkpts)
+
 
 #####################GENERAL SPATIAL OBJECT COMMANDS############
 st_layers("0115 AA.gpx") #shows layers of objects in this file
