@@ -1,24 +1,21 @@
-# install.packages("mapview")
-# install.packages("sf")
 library(mapview)
-library(sf)
+library(sf) ###using sf and maptools to visualize data https://geocompr.github.io/geocompkg/articles/gps-tracks.html
 library(rgdal)#write ogr
 library(lubridate) #useful for dealing with times ina more intuitive manner here is a cheat sheet https://evoldyn.gitlab.io/evomics-2018/ref-sheets/R_lubridate.pdf
 
-###using map tools https://stackoverflow.com/questions/6397523/read-multiple-gpx-files to read GPD siles
-########using sf and maptools to visualize data
-#https://geocompr.github.io/geocompkg/articles/gps-tracks.html
+###using map tools https://stackoverflow.com/questions/6397523/read-multiple-gpx-files to read GPS files
+
 
 #alternatively you can set working directory instead of navigate to long folder path
-setwd("/Users/BJB/Desktop/Lomas_GPS_Subset/201501") #sets WD to where files are
+setwd("/Users/BJB/Desktop/Lomas_GPS_Subset/201501") #sets WD to where files are, needs to be changed to your computer
 
 #################################################################
 ########CLEANING GPX DATA and writing to new GPX FILES###########
 #################################################################
 
-filename <- "0115 FL.gpx" #assuming this isloaded in wd otherwise use a folder directory or URL
-######RGDAL
-trkpt <- readOGR(dsn = "/Users/BJB/Desktop/Lomas_GPS_Subset/201501/0115 FL.gpx", layer="track_points") #using this function in RGDAL
+filename <- "0115 FL.gpx" #assuming this is loaded in wd otherwise use a folder directory or URL
+######RGDAL to load
+trkpt <- readOGR(dsn = filename, layer="track_points") #using this function in RGDAL
 trk <- readOGR(dsn = filename, layer="tracks") #using this function in RGDAL
 wpt = readOGR(dsn = filename, layer="waypoints") #using this function in RGDAL
 
@@ -48,6 +45,7 @@ length(unique(trkpt2$track_seg_point_id))
 #remove middle points where person went to meet Brendan or Buddy to get Panama fruits
 trkpt_clean <- trkpt2[trkpt2$track_seg_point_id > 915 | trkpt2$track_seg_point_id < 888 ,] 
 mapview(list(trkpt,trkpt_clean) , map.types="Esri.WorldImagery" , alpha=0)#compare multiple objects, making this 2 colors would be good
+length(unique(trkpt_clean$track_seg_point_id))
 
 #advanced mapview https://r-spatial.github.io/mapview/articles/articles/mapview_02-advanced.html
 mapview(trkpt , map.types="Esri.WorldImagery" , alpha=0 , col.regions="slateblue" ) + mapview(trkpt_clean , map.types="Esri.WorldImagery" , alpha=0 , col.regions="orange")
@@ -95,22 +93,83 @@ writeOGR(trkpt_clean, driver="GPX", layer=c("waypoints", "track_points"),  dsn="
 
 ###########ODDS CLEANED MK DATA#######
 st_layers("MK2010_2012.gpx") #shows layers of objects in this file
-
-filename <- "/Users/BJB/Desktop/Lomas_GPS_Subset/201501/MK2010_2012.gpx"
+#####load files
+filename <- "/Users/BJB/Desktop/Lomas_GPS_Subset/201501/MK2010_2012.gpx" #read file
 trkpts <- readOGR(dsn = filename, layer="track_points") #using this function in RGDAL
 trx <- readOGR(dsn = filename, layer="tracks") #using this function in RGDAL
-trx = st_read(filename, layer = "tracks")#loads just tracks of file
-trkpts = st_read(filename, layer = "track_points")#loads just tracks of file
+unique(trkpts$time)#ony 149 timesteps
 
+##visualize raw data and investigate some properties
+mapview(trx , zcol="name")#visualize all tracks
+mapview(trkpts , zcol="track_fid")#visualize all trkpts
+str(trkpts) #tr_fid has unique ID for each track
+#####Note only one of these days on trkpts has an actual timestamp
+
+length(unique(trkpts$track_fid))#unique tracks_fid
 str(trx)
+
+##extract track names, lets inspect for cleaning
+
+track_names <- toupper(as.vector(trx$name)) #vector of name of tracks in tracks file uppercased
+track_names#view and lets correct visible errors
+#https://stackoverflow.com/questions/7963898/extracting-the-last-n-characters-from-a-string-in-r
+library(stringr) #useful package
+nchar(track_names) #shows lenth of string with names in it, helps to identify aberations
+#this is easy-- names 1,2, and 66 but we can identify this via code as well via which or using logical commands
+track_names <- str_replace(track_names, "AEZ160211", "EZ160211") #one way, but can also vectorize for multipl entries
+track_names[2] <- "MKDD0810" ##note we cant tell from this is its august 10th in some year or august 2010, need to go back and look at folders to check
+
+#before we replace next one, i notice there is a repeat of the day, lets visualize it (also can compare GPS coords or number of points)
+which(track_names=="MK250312 001")#gives slot in vector with this name
+which(track_names=="MK250312")#gives slot in vector with this name
+
+temp1 <- trkpts[trkpts$track_fid==which(track_names=="MK250312 001")-1,]
+temp2 <- trkpts[trkpts$track_fid==which(track_names=="MK250312")-1,]
+
+mapview(temp1 , map.types="Esri.WorldImagery" , alpha=0.5 , col.regions="orange") + mapview(temp2 ,map.types="Esri.WorldImagery" , alpha=0.5 , col.regions="slateblue" ) #plots two trackpoints with same date 
+
+max(temp1$track_seg_point_id)
+max(temp2$track_seg_point_id) #this has more points. lets pretend it is right and delete old one (but at end of workflow) later on
+# trkptsn <- trkpts[trkpts$track_fid!=which(track_names=="MK250312 001")-1,]#code to delete duplicate// wait for end to do it so i do not have to do the same tracks in the meantime
+
+track_names <-  str_replace(track_names, "MK250312 001", "XXXXXXXX") #placeholder for now
+range(nchar(track_names))#make sure all the same length
+
+#we can extract relevant info from files to automajically rename everything
+
+year_2 <-str_sub(track_names,-2,-1)##extracts last two charachters (hypothetical year if files consistently named)
+group_2 <- str_sub(track_names,1,2)##extracts first two charachters (hypothetical group if files consistently named)
+month_2 <- str_sub(track_names,-4,-3)
+day_2 <- str_sub(track_names,3,4)
+year_4 <- paste(20,year_2, sep = "") #add 20 to year_2
+
+track_names_new <- paste(year_4, month_2 , day_2, group_2, sep = "_")#new track names!! lets deal with EZ
+track_names_new[1] <- "2011_02_16_MK_EZ"
+
+#lets put new tracknames into track points file
+trkpts$name <- as.character(trkpts$name) ##convert colum to charachter from factor to populate
+trkpts$name <-track_names_new
+
+#attach new names to trackpoints
+for(i in min(trkpts$track_fid):max(trkpts$track_fid) ){
+  l <- length(trkpts$name[trkpts$track_fid==i])
+  trkpts$name[trkpts$track_fid==i] <- rep(track_names_new[i+1],l) #i + 1 b/c starts at 0
+}
+
+#in theory, now we can get ready to start cleaning the file
+trx$number <- 0:(nrow(trx)-1) #assign same track_id starting at 0 to trx$name
+
+for(i in 0:66){
+ print( mapview(trkpts[trkpts$track_fid==i,] , map.types="Esri.WorldImagery") + mapview(trx[trx$number==i,]))
+} #this visualizes all the tracks, need one where we have more informative info on map
+
+#mapview(trkpts[trkpts$track_fid==i,] , map.types="Esri.WorldImagery"  , z.col=trkpts$track_seg_point_id[trkpts$track_fid==i])
+
+mapview( trkpts[trkpts$track_fid==1,] )
+mapview(trx[trx$number==i,])
 mapview(trx)
-plot(trx$geometry) #plot tracks in line
-plot(trx)
-mapview(trkpts , cex=2)
-plot(trkpts$geometry ) #plot traclpoints
-plot(trkpts)
-
-
+mapview(trx@lines[[1]])
+str(trx)
 #####################GENERAL SPATIAL OBJECT COMMANDS############
 st_layers("0115 AA.gpx") #shows layers of objects in this file
 st_layers("0115 FL.gpx") #shows layers of objects in this file
@@ -118,7 +177,10 @@ st_layers("0115 SP.gpx") #shows layers of objects in this file
 
 trx = st_read("0115 AA.gpx", layer = "tracks")#loads just tracks of file
 trxpts = st_read("0115 AA.gpx", layer = "track_points")#loads just tracks of file
+plot(trx)
+plot(trxpts)
 
+str(trx)
 class(trx)#see what file contains and inspect elements
 class(trxpts)
 st_geometry_type(trx)
@@ -157,7 +219,18 @@ difftime(trkpt$time[11], trkpt$time[10])##gives sampling rate between points
 mapview(trkpt)
 mapview(trk)
 
+trx$geometry[[1]][[1]][2,]
 
+trkpts$track_seg_point_id
+trkpts$track_seg_point_id
+str(trkpts$geometry)
+str(trx)
+trx$geometry[[3]][[1]]
+trx$name
+trx$geometry[[1]][[1]]
+trkpts$geometry[[1]][1:2]
+trkpts$geometry[1:4][1:2]
+max(trkpts$track_fid) #gives a track ID
 #########this is another way to load a gpx file i just saw that stores it in a different format
 library(plotKML)
 x <- readGPX("/Users/BJB/Desktop/Lomas_GPS_Subset/201501/0115 FL.gpx" , metadata = TRUE, bounds = TRUE, 
